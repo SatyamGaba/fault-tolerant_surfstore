@@ -139,10 +139,10 @@ def requestVote(client):
     global vote_counter
     try:
         if client.voteHandler(current_term, idx):#, last_log_index, last_log_term): #true or false
-            print("vote accepted")
+            #print("vote accepted")
             vote_counter +=1
     except Exception as e:
-        print("in except for " + str(client))        
+        #print("in except for " + str(client))        
         pass
         # print("Server: " + str(e))
 
@@ -151,7 +151,7 @@ def voteHandler(cand_term, cand_id):#, cand_last_log_index, cand_last_log_term):
     global current_term
     global state
 
-    print(current_term, cand_term)
+    #print(current_term, cand_term)
     if current_term < cand_term:
         # if cand_last_log_index > last_log_index:
         voted_for = cand_id
@@ -165,7 +165,26 @@ def voteHandler(cand_term, cand_id):#, cand_last_log_index, cand_last_log_term):
     #     self.votedFor = cand_id
     #     self.currentTerm = cand_term
     #     return True  
-    # return False      
+    # return False
+
+
+def appendEntries(client):
+    try:
+        client.heartbeatHandler(current_term, idx)
+    except Exception as e:
+        #print("in except for " + str(client))        
+        pass
+    pass
+    # self.timer.reset()
+    # client = xmlrpc.client.ServerProxy("http://" + server_info[voter_id])
+    # client.heartbeatHandler(self.id, self.currentTerm)
+
+def heartbeatHandler(leader_term, leader_id):
+    global timer
+    global current_term
+    print("received heartbeat by: " + str(leader_id)+" in term " + str(leader_term))
+    current_term = leader_term
+    timer.reset()
 
 def requestVoteHandler():
     global current_term
@@ -189,17 +208,21 @@ def requestVoteHandler():
                     th11_list[-1].start()
                 for t in th11_list:
                     t.join()
-                print(vote_counter)
+                #print(vote_counter)
                 if vote_counter > (num_servers/2):
                     state = 0 #leader elected
-                    print("I am the king: " + str(current_term) +"," + str(vote_counter))
-        
-
-def appendEntries(follower_id):
-    pass
-    # self.timer.reset()
-    # client = xmlrpc.client.ServerProxy("http://" + server_info[voter_id])
-    # client.heartbeatHandler(self.id, self.currentTerm)
+                    print("I am the king in term: " + str(current_term) +", votes: " + str(vote_counter))
+                    # immediately send hearbeat here somehow
+        else:
+            if timer.now() > 1000:
+                timer.start = int(time.time()*1000)
+                th_heartbeat = []
+                for cl in client_list:
+                    th_heartbeat.append(threading.Thread(target = appendEntries, args=(cl, )))
+                    th_heartbeat[-1].start()
+                for t in th_heartbeat:
+                    t.join()
+    
         
 def raftThread():
     global state
@@ -265,6 +288,7 @@ if __name__ == "__main__":
     server.register_function(isCrashed,"surfstore.iscrashed")
 
     server.register_function(voteHandler,"voteHandler")
+    server.register_function(heartbeatHandler, "heartbeatHandler")
     # server.register_function()
 
     print("Started successfully.")
