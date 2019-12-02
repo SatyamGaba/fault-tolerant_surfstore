@@ -28,9 +28,17 @@ class timerClass():
 
     def now(self):
         return int(time.time()*1000) - self.start
+
     def reset(self):
         self.start = int(time.time()*1000)
         self.timeout = random.randint(self.t_a,self.t_b)
+
+    def setTimeout(self, reset_time = None):
+        if reset_time != None:
+            self.timeout = reset_time
+        else:
+            self.timeout = random.randint(self.t_a,self.t_b)
+
 
 
 # A simple ping, returns true
@@ -81,6 +89,9 @@ def getfileinfomap():
 def updatefile(filename, version, hashlist):
     """Updates a file's fileinfo entry"""
     # print("UpdateFile()")
+    global log
+    # ******* add log entries
+    # log.append([current_term, ]) # check with others for their commits
 
     if filename in FileInfoMap.keys():
         #file already exist in cloud
@@ -137,56 +148,96 @@ def isCrashed():
 
 def requestVote(client):
     global vote_counter
-    try:
-        if client.voteHandler(current_term, idx):#, last_log_index, last_log_term): #true or false
-            #print("vote accepted")
-            vote_counter +=1
-    except Exception as e:
-        #print("in except for " + str(client))        
-        pass
-        # print("Server: " + str(e))
-
-def voteHandler(cand_term, cand_id):#, cand_last_log_index, cand_last_log_term):
-    global voted_for
     global current_term
-    global state
+    # try:
+    if not log:
+        last_log_index = 0
+        last_log_term = 0
+    else:
+        last_log_index = len(log)
+        last_log_term = log[-1][0]
+    try:
+        vote_response = client.voteHandler(current_term, idx, last_log_index, last_log_term )
+        print("vote requeted")
+        if vote_response[0]: # [true, current term]
+            vote_counter +=1
+        else:
+            current_term = vote_response[1]
+    except (ConnectionRefusedError):
+        pass
+        # print("ConnectionRefusedError")
 
-    #print(current_term, cand_term)
-    if current_term < cand_term:
-        # if cand_last_log_index > last_log_index:
+def voteHandler(cand_term, cand_id, cand_last_log_index, cand_last_log_term):
+
+    def castVote():
+        global voted_for
+        global current_term
+        global state
         voted_for = cand_id
         current_term = cand_term
         state = 2
-        return True
-    else:
-        return False    
+        print("casting vote")
+        return [True, current_term]
 
-    # # ***** also check log
-    #     self.votedFor = cand_id
-    #     self.currentTerm = cand_term
-    #     return True  
-    # return False
+    if not log:
+        last_log_index = 0
+        last_log_term = 0
+    else:
+        last_log_index = len(log)
+        last_log_term = log[-1][0]
+    
+    print("last_log_term", last_log_term)
+
+    if current_term < cand_term:
+        if cand_last_log_index > last_log_index:
+            return castVote()
+        elif cand_last_log_index == last_log_index \
+                and cand_last_log_term == last_log_term:
+            return castVote()
+    else:
+        print("Sorry no voting")
+        return [False, current_term]    
 
 
 def appendEntries(client):
-    try:
-        client.heartbeatHandler(current_term, idx)
-    except Exception as e:
-        #print("in except for " + str(client))        
-        pass
-    pass
+    next_index = len(log)  # last index + 1
+    while True:
+        if state == 0: # if leader
+            try:
+                global prev_log_index
+                if log:
+                    prev_log_term = log[prev_log_index][0]
+                else:
+                    prev_log_term = 0 #nONE
+                entries =[]
+                if success:
+                    # log[]
+                    pass
+
+                term, success = client.appendEntryHandler(current_term, idx, prev_log_index,\
+                                        prev_log_term, entries, leader_commit)
+            except Exception as e:
+                #print("in except for " + str(client))        
+                pass
+        else:  # if state changes to follower
+            break
+            #return
+
     # self.timer.reset()
     # client = xmlrpc.client.ServerProxy("http://" + server_info[voter_id])
     # client.heartbeatHandler(self.id, self.currentTerm)
 
-def heartbeatHandler(leader_term, leader_id):
+def appendEntryHandler(leader_term, leader_id):
     global timer
     global current_term
     print("received heartbeat by: " + str(leader_id)+" in term " + str(leader_term))
     current_term = leader_term
     timer.reset()
+    success = True #True/False
+    # decrement nect_log
+    return term, success 
 
-def requestVoteHandler():
+def requestHandler():
     global current_term
     global state
     global vote_counter
@@ -211,17 +262,19 @@ def requestVoteHandler():
                 #print(vote_counter)
                 if vote_counter > (num_servers/2):
                     state = 0 #leader elected
-                    print("I am the king in term: " + str(current_term) +", votes: " + str(vote_counter))
+                    print("I am the leader in term: " + str(current_term) +", votes: " + str(vote_counter))
                     # immediately send hearbeat here somehow
         else:
-            if timer.now() > 1000:
-                timer.start = int(time.time()*1000)
-                th_heartbeat = []
+            timer.setTimeout(500)  #*** can so timer.set_timeout(1000)
+            if timer.now() > timer.timeout:
+                timer.reset()
+                th12_list= []
                 for cl in client_list:
-                    th_heartbeat.append(threading.Thread(target = appendEntries, args=(cl, )))
-                    th_heartbeat[-1].start()
-                for t in th_heartbeat:
+                    th12_list.append(threading.Thread(target = appendEntries, args=(cl, )))
+                    th12_list[-1].start()
+                for t in th12_list:
                     t.join()
+
     
         
 def raftThread():
@@ -237,7 +290,7 @@ def raftThread():
             cl = xmlrpc.client.ServerProxy("http://"+server_info[i])
             client_list.append(cl)
 
-    th11 = threading.Thread(target = requestVoteHandler, )
+    th11 = threading.Thread(target = requestHandler, )
     th11.start()
     th11.join()
 
@@ -266,8 +319,8 @@ if __name__ == "__main__":
     is_crashed = False
     current_term = 1
     voted_for = None
-    # last_log_index = 0
-    # last_log_term = 
+    log = [] # [[term,data]]
+    prev_log_index = 0
 
     print("Attempting to start XML-RPC Server at "+ address+":"+str(port))
     server = threadedXMLRPCServer((address, port), requestHandler=RequestHandler)
@@ -288,7 +341,7 @@ if __name__ == "__main__":
     server.register_function(isCrashed,"surfstore.iscrashed")
 
     server.register_function(voteHandler,"voteHandler")
-    server.register_function(heartbeatHandler, "heartbeatHandler")
+    server.register_function(appendEntryHandler, "appendEntryHandler")
     # server.register_function()
 
     print("Started successfully.")
