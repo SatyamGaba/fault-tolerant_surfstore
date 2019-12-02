@@ -398,10 +398,10 @@ if __name__ == "__main__":
     server.register_function(getfileinfomap,"surfstore.getfileinfomap")
     server.register_function(updatefile,"surfstore.updatefile")
 
-    server.register_function(isLeader,"surfstore.isleader")
+    server.register_function(isLeader,"surfstore.isLeader")
     server.register_function(crash,"surfstore.crash")
     server.register_function(restore,"surfstore.restore")
-    server.register_function(isCrashed,"surfstore.iscrashed")
+    server.register_function(isCrashed,"surfstore.isCrashed")
 
     server.register_function(voteHandler,"voteHandler")
     server.register_function(appendEntryHandler, "appendEntryHandler")
