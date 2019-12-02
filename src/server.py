@@ -81,6 +81,7 @@ def hasblocks(hashlist):
 def getfileinfomap():
     """Gets the fileinfo map"""
     # print("GetFileInfoMap()")
+    
 
     result = FileInfoMap
     return result
@@ -150,6 +151,7 @@ def isCrashed():
 def requestVote(client):
     global vote_counter
     global current_term
+    global state
     # try:
     if not log:
         last_log_index = 0
@@ -163,12 +165,17 @@ def requestVote(client):
         if vote_response[0]: # [true, current term]
             vote_counter +=1
         else:
-            current_term = vote_response[1]
+            if vote_response[1]>current_term:
+                current_term = vote_response[1]
+                state = 2
+            
     except (ConnectionRefusedError):
         pass
         # print("ConnectionRefusedError")
 
 def voteHandler(cand_term, cand_id, cand_last_log_index, cand_last_log_term):
+    global timer
+    timer.reset()
 
     def castVote():
         global voted_for
@@ -201,6 +208,7 @@ def voteHandler(cand_term, cand_id, cand_last_log_index, cand_last_log_term):
 
 
 def appendEntries(client):
+<<<<<<< HEAD
     global next_index
     global prev_log_index
     global state
@@ -235,6 +243,31 @@ def appendEntries(client):
     except Exception as e: # if some server not alive
         #print("in except for " + str(client))        
         pass
+=======
+    next_index = len(log)  # last index + 1
+    while True:
+        if state == 0: # if leader
+            try:
+                global prev_log_index
+                if log:
+                    prev_log_term = log[prev_log_index][0]
+                else:
+                    prev_log_term = 0 #nONE
+                entries =[]
+                if success: #****if failure, check if term has changed,
+                    # ******** update and revert to follower 
+                    # log[]
+                    pass
+
+                term, success = client.appendEntryHandler(current_term, idx, prev_log_index,\
+                                        prev_log_term, entries, leader_commit)
+            except Exception as e:
+                #print("in except for " + str(client))        
+                pass
+        else:  # if state changes to follower
+            break
+            #return
+>>>>>>> master
 
     # self.timer.reset()
     # client = xmlrpc.client.ServerProxy("http://" + server_info[voter_id])
@@ -244,8 +277,13 @@ def appendEntryHandler(leader_term, leader_id, prev_log_index,/
                         prev_log_term, entries, leader_commit):
     global timer
     global current_term
+<<<<<<< HEAD
 
     success = False
+=======
+    global state
+    state = 2
+>>>>>>> master
     print("received heartbeat by: " + str(leader_id)+" in term " + str(leader_term))
     if current_term > leader_term:
         return current_term, success
