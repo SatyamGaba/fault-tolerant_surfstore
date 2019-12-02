@@ -81,6 +81,7 @@ def hasblocks(hashlist):
 def getfileinfomap():
     """Gets the fileinfo map"""
     # print("GetFileInfoMap()")
+    
 
     result = FileInfoMap
     return result
@@ -149,6 +150,7 @@ def isCrashed():
 def requestVote(client):
     global vote_counter
     global current_term
+    global state
     # try:
     if not log:
         last_log_index = 0
@@ -162,12 +164,17 @@ def requestVote(client):
         if vote_response[0]: # [true, current term]
             vote_counter +=1
         else:
-            current_term = vote_response[1]
+            if vote_response[1]>current_term:
+                current_term = vote_response[1]
+                state = 2
+            
     except (ConnectionRefusedError):
         pass
         # print("ConnectionRefusedError")
 
 def voteHandler(cand_term, cand_id, cand_last_log_index, cand_last_log_term):
+    global timer
+    timer.reset()
 
     def castVote():
         global voted_for
@@ -210,7 +217,8 @@ def appendEntries(client):
                 else:
                     prev_log_term = 0 #nONE
                 entries =[]
-                if success:
+                if success: #****if failure, check if term has changed,
+                    # ******** update and revert to follower 
                     # log[]
                     pass
 
@@ -230,6 +238,8 @@ def appendEntries(client):
 def appendEntryHandler(leader_term, leader_id):
     global timer
     global current_term
+    global state
+    state = 2
     print("received heartbeat by: " + str(leader_id)+" in term " + str(leader_term))
     current_term = leader_term
     timer.reset()
