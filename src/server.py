@@ -92,18 +92,19 @@ def updatefile(filename, version, hashlist):
     global log
     # ******* add log entries
     # log.append([current_term, ]) # check with others for their commits
+    log.append([term, [filename, version, hashlist]])
 
-    if filename in FileInfoMap.keys():
-        #file already exist in cloud
-        last_version = FileInfoMap[filename]
-        if (version == last_version[0]+1):
-            FileInfoMap[filename] = tuple((version, hashlist))
-        else:
-            "send error"
-            return False
-    else:
-        #new file (version should be 1)
-        FileInfoMap[filename] = tuple((version, hashlist))
+    # if filename in FileInfoMap.keys():
+    #     #file already exist in cloud
+    #     last_version = FileInfoMap[filename]
+    #     if (version == last_version[0]+1):
+    #         FileInfoMap[filename] = tuple((version, hashlist))
+    #     else:
+    #         "send error"
+    #         return False
+    # else:
+    #     #new file (version should be 1)
+    #     FileInfoMap[filename] = tuple((version, hashlist))
     return True
 
 # PROJECT 3 APIs below
@@ -200,48 +201,76 @@ def voteHandler(cand_term, cand_id, cand_last_log_index, cand_last_log_term):
 
 
 def appendEntries(client):
-    next_index = len(log)  # last index + 1
-    while True:
-        if state == 0: # if leader
-            try:
-                global prev_log_index
-                if log:
-                    prev_log_term = log[prev_log_index][0]
-                else:
-                    prev_log_term = 0 #nONE
-                entries =[]
-                if success:
-                    # log[]
-                    pass
+    global next_index
+    global prev_log_index
+    global state
+    global current_term
 
-                term, success = client.appendEntryHandler(current_term, idx, prev_log_index,\
-                                        prev_log_term, entries, leader_commit)
-            except Exception as e:
-                #print("in except for " + str(client))        
-                pass
-        else:  # if state changes to follower
-            break
-            #return
+    try:
+        if log:
+            if next_index[cl][1] == False:
+                entries = []
+            else: #matched  True
+                entries = log[next_index[cl][0]:len(log)]
+                match_index[cl] = prev_log_index
+                next_index[cl][0] = len(log)          
+        else:
+            entries =[]
+        prev_log_index = next_index[cl][0] - 1
+        prev_log_term = log[prev_log_index][0]
+
+        follower_term, success = client.appendEntryHandler(current_term, idx, prev_log_index,\
+                                prev_log_term, entries, leader_commit)
+        #success True if follower[next_index] matches any entry in leader
+        if follower_term > current_term:
+            state = 2
+            current_term = follower_term
+
+        next_index[cl][1] = success
+        if not success:
+            if next_index[cl][0] > 0:
+                next_index[cl][0] -= 1
+
+
+    except Exception as e: # if some server not alive
+        #print("in except for " + str(client))        
+        pass
 
     # self.timer.reset()
     # client = xmlrpc.client.ServerProxy("http://" + server_info[voter_id])
     # client.heartbeatHandler(self.id, self.currentTerm)
 
-def appendEntryHandler(leader_term, leader_id):
+def appendEntryHandler(leader_term, leader_id, prev_log_index,/
+                        prev_log_term, entries, leader_commit):
     global timer
     global current_term
+
+    success = False
     print("received heartbeat by: " + str(leader_id)+" in term " + str(leader_term))
-    current_term = leader_term
+    if current_term > leader_term:
+        return current_term, success
     timer.reset()
-    success = True #True/False
-    # decrement nect_log
-    return term, success 
+    if log:
+        if prev_log_index < len(log):
+            if log[prev_log_index] == prev_log_term:
+                success = True
+                for i,j in enumerate(range(prev_log_index, prev_log_index + len(entries))):
+                    if j < len(log):
+                        log[j] = entries[i]
+                    else:
+                        log.append(entries[i])
+    elif len(log) == 0 and prev_log_index = 0:
+        success = True
+    if leader_commit > commit_index:
+        commit_index = min(leader_commit, len(log))
+    return current_term, success 
 
 def requestHandler():
     global current_term
     global state
     global vote_counter
     global timer
+    global new_leader
 
     timer = timerClass()
     timer.reset()
@@ -262,18 +291,23 @@ def requestHandler():
                 #print(vote_counter)
                 if vote_counter > (num_servers/2):
                     state = 0 #leader elected
+                    new_leader = True
                     print("I am the leader in term: " + str(current_term) +", votes: " + str(vote_counter))
                     # immediately send hearbeat here somehow
-        else:
+        else: # leader
             timer.setTimeout(500)  #*** can so timer.set_timeout(1000)
             if timer.now() > timer.timeout:
                 timer.reset()
                 th12_list= []
                 for cl in client_list:
                     th12_list.append(threading.Thread(target = appendEntries, args=(cl, )))
+                    if new_leader: 
+                        next_index[cl] = [len(log), False] # [initialize, success]
+                        match_index[cl] = 0
                     th12_list[-1].start()
                 for t in th12_list:
                     t.join()
+                new_leader = False
 
     
         
@@ -321,6 +355,9 @@ if __name__ == "__main__":
     voted_for = None
     log = [] # [[term,data]]
     prev_log_index = 0
+    new_leader = False
+    commit_index = 0
+    last_applied = 0
 
     print("Attempting to start XML-RPC Server at "+ address+":"+str(port))
     server = threadedXMLRPCServer((address, port), requestHandler=RequestHandler)
