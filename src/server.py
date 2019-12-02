@@ -207,27 +207,35 @@ def voteHandler(cand_term, cand_id, cand_last_log_index, cand_last_log_term):
         return [False, current_term]    
 
 
-def appendEntries(client):
-<<<<<<< HEAD
+def appendEntries(cl):
     global next_index
+    global match_index
     global prev_log_index
     global state
     global current_term
 
+    # print("@@@@@@@@@@@@@@@@@")
+    # print(next_index)
+    # print("@@@@@@@@@@@@@@@@@@")
     try:
+        prev_log_index = 0
         if log:
             if next_index[cl][1] == False:
                 entries = []
             else: #matched  True
                 entries = log[next_index[cl][0]:len(log)]
                 match_index[cl] = prev_log_index
-                next_index[cl][0] = len(log)          
+                next_index[cl][0] = len(log)  
+            if next_index[cl][0] > 0:
+                prev_log_index = next_index[cl][0] - 1
+                prev_log_term = log[prev_log_index][0]        
         else:
             entries =[]
-        prev_log_index = next_index[cl][0] - 1
-        prev_log_term = log[prev_log_index][0]
+            prev_log_index = 0
+            prev_log_term= 0
 
-        follower_term, success = client.appendEntryHandler(current_term, idx, prev_log_index,\
+        leader_commit = commit_index
+        follower_term, success = cl.appendEntryHandler(current_term, idx, prev_log_index,\
                                 prev_log_term, entries, leader_commit)
         #success True if follower[next_index] matches any entry in leader
         if follower_term > current_term:
@@ -240,50 +248,23 @@ def appendEntries(client):
                 next_index[cl][0] -= 1
 
 
-    except Exception as e: # if some server not alive
-        #print("in except for " + str(client))        
+    except (ConnectionRefusedError):
+    # Exception as e: # if some server not alive
+        # print("in except for " + str(client))       
         pass
-=======
-    next_index = len(log)  # last index + 1
-    while True:
-        if state == 0: # if leader
-            try:
-                global prev_log_index
-                if log:
-                    prev_log_term = log[prev_log_index][0]
-                else:
-                    prev_log_term = 0 #nONE
-                entries =[]
-                if success: #****if failure, check if term has changed,
-                    # ******** update and revert to follower 
-                    # log[]
-                    pass
-
-                term, success = client.appendEntryHandler(current_term, idx, prev_log_index,\
-                                        prev_log_term, entries, leader_commit)
-            except Exception as e:
-                #print("in except for " + str(client))        
-                pass
-        else:  # if state changes to follower
-            break
-            #return
->>>>>>> master
 
     # self.timer.reset()
     # client = xmlrpc.client.ServerProxy("http://" + server_info[voter_id])
     # client.heartbeatHandler(self.id, self.currentTerm)
 
-def appendEntryHandler(leader_term, leader_id, prev_log_index,/
+def appendEntryHandler(leader_term, leader_id, prev_log_index,\
                         prev_log_term, entries, leader_commit):
     global timer
     global current_term
-<<<<<<< HEAD
-
-    success = False
-=======
     global state
+    global commit_index
     state = 2
->>>>>>> master
+    success = False
     print("received heartbeat by: " + str(leader_id)+" in term " + str(leader_term))
     if current_term > leader_term:
         return current_term, success
@@ -297,7 +278,7 @@ def appendEntryHandler(leader_term, leader_id, prev_log_index,/
                         log[j] = entries[i]
                     else:
                         log.append(entries[i])
-    elif len(log) == 0 and prev_log_index = 0:
+    elif len(log) == 0 and prev_log_index == 0:
         success = True
     if leader_commit > commit_index:
         commit_index = min(leader_commit, len(log))
@@ -309,6 +290,8 @@ def requestHandler():
     global vote_counter
     global timer
     global new_leader
+    global next_index
+    global match_index
 
     timer = timerClass()
     timer.reset()
@@ -333,15 +316,20 @@ def requestHandler():
                     print("I am the leader in term: " + str(current_term) +", votes: " + str(vote_counter))
                     # immediately send hearbeat here somehow
         else: # leader
-            timer.setTimeout(500)  #*** can so timer.set_timeout(1000)
+            timer.setTimeout(100)  #*** can so timer.set_timeout(1000)
             if timer.now() > timer.timeout:
                 timer.reset()
                 th12_list= []
-                for cl in client_list:
-                    th12_list.append(threading.Thread(target = appendEntries, args=(cl, )))
-                    if new_leader: 
+                if new_leader:
+                    next_index ={}
+                    match_index = {}
+                    for cl in client_list:
+                    # print("before appendEntries")
                         next_index[cl] = [len(log), False] # [initialize, success]
                         match_index[cl] = 0
+
+                for cl in client_list:
+                    th12_list.append(threading.Thread(target = appendEntries, args=(cl, )))
                     th12_list[-1].start()
                 for t in th12_list:
                     t.join()
