@@ -21,8 +21,8 @@ class threadedXMLRPCServer(ThreadingMixIn, SimpleXMLRPCServer):
 class timerClass():
     '''Timer'''
     def __init__(self):
-        self.t_a = 1500
-        self.t_b = 2500
+        self.t_a = 300
+        self.t_b = 600
         self.start = int(time.time()*1000)
         self.timeout = random.randint(self.t_a,self.t_b)
 
@@ -386,7 +386,7 @@ if __name__ == "__main__":
     last_applied = 0
 
     print("Attempting to start XML-RPC Server at "+ address+":"+str(port))
-    server = threadedXMLRPCServer((address, port), requestHandler=RequestHandler)
+    server = threadedXMLRPCServer(("0.0.0.0", port), requestHandler=RequestHandler)
     th1 = threading.Thread(target = raftThread)
     th1.start()
     # th1.join()
