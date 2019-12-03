@@ -21,8 +21,8 @@ class threadedXMLRPCServer(ThreadingMixIn, SimpleXMLRPCServer):
 class timerClass():
     '''Timer'''
     def __init__(self):
-        self.t_a = 300
-        self.t_b = 600
+        self.t_a = 1500
+        self.t_b = 2000
         self.start = int(time.time()*1000)
         self.timeout = random.randint(self.t_a,self.t_b)
 
@@ -284,7 +284,7 @@ def appendEntryHandler(leader_term, leader_id, prev_log_index,\
         commit_index = min(leader_commit, len(log))
     return current_term, success 
 
-def requestHandler():
+def raftHandler():
     global current_term
     global state
     global vote_counter
@@ -316,7 +316,7 @@ def requestHandler():
                     print("I am the leader in term: " + str(current_term) +", votes: " + str(vote_counter))
                     # immediately send hearbeat here somehow
         else: # leader
-            timer.setTimeout(100)  #*** can so timer.set_timeout(1000)
+            timer.setTimeout(700)  #*** can so timer.set_timeout(1000)
             if timer.now() > timer.timeout:
                 timer.reset()
                 th12_list= []
@@ -335,24 +335,6 @@ def requestHandler():
                     t.join()
                 new_leader = False
 
-    
-        
-def raftThread():
-    global state
-    global is_crashed
-    global current_term
-    global voted_for
-    global client_list
-    
-    client_list = []
-    for i in server_info.keys():
-        if i!=idx:
-            cl = xmlrpc.client.ServerProxy("http://"+server_info[i])
-            client_list.append(cl)
-
-    th11 = threading.Thread(target = requestHandler, )
-    th11.start()
-    th11.join()
 
 if __name__ == "__main__":
 
@@ -386,10 +368,15 @@ if __name__ == "__main__":
     last_applied = 0
 
     print("Attempting to start XML-RPC Server at "+ address+":"+str(port))
-    server = threadedXMLRPCServer(("0.0.0.0", port), requestHandler=RequestHandler)
-    th1 = threading.Thread(target = raftThread)
-    th1.start()
-    # th1.join()
+    server = threadedXMLRPCServer((address, port), requestHandler=RequestHandler)
+    # th1 = threading.Thread(target = raftThread)
+    
+    client_list = []
+    for i in server_info.keys():
+        if i!=idx:
+            cl = xmlrpc.client.ServerProxy("http://"+server_info[i])
+            client_list.append(cl)
+
     server.register_introspection_functions()
     server.register_function(ping,"surfstore.ping")
     server.register_function(getblock,"surfstore.getblock")
@@ -409,6 +396,10 @@ if __name__ == "__main__":
 
     print("Started successfully.")
     print("Accepting requests. (Halt program to stop.)")
+
+    th1 = threading.Thread(target = raftHandler, )
+    th1.start()
+
     server.serve_forever()
     # except Exception as e:
     #     print("Server: " + str(e))
