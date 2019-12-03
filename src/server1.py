@@ -210,9 +210,9 @@ def voteHandler(cand_term, cand_id, cand_last_log_index, cand_last_log_term):
 
 
 def appendEntries(cl):
-    # global next_index
+    global next_index
     global match_index
-    # global prev_log_index
+    global prev_log_index
     global state
     global current_term
 
@@ -220,26 +220,34 @@ def appendEntries(cl):
     # print(next_index)
     # print("@@@@@@@@@@@@@@@@@@")
     try:
-        entries =[]
-        # prev_log_index = 0
-        if new_leader:
-            if log:
-                entries = log[:len(log)]
-            else:
+        prev_log_index = 0
+        if log:
+            if next_index[cl][1] == False:
                 entries = []
-                match_index[cl] = -1
+            else: #matched  True
+                entries = log[next_index[cl][0]-1:len(log)]
+                match_index[cl] = prev_log_index
+                next_index[cl][0] = len(log)  
+            if next_index[cl][0] > 0:
+                prev_log_index = next_index[cl][0] - 1
+                prev_log_term = log[prev_log_index][0]        
         else:
-            if len(log) > match_index[cl] + 1:
-                entries = log[match_index[cl]+1: len(log)]
+            entries =[]
+            prev_log_index = 0
+            prev_log_term= 0
 
-        # leader_commit = commit_index
-        follower_term, success = cl.appendEntryHandler(current_term, idx, match_index[cl], entries)
+        leader_commit = commit_index
+        follower_term, success = cl.appendEntryHandler(current_term, idx, prev_log_index,\
+                                prev_log_term, entries, leader_commit)
         #success True if follower[next_index] matches any entry in leader
         if follower_term > current_term:
             state = 2
             current_term = follower_term
-        if success:
-            match_index[cl] = len(log)-1
+
+        next_index[cl][1] = success
+        if not success:
+            if next_index[cl][0] > 0:
+                next_index[cl][0] -= 1
 
         print(log)
     except (ConnectionRefusedError):
@@ -251,17 +259,19 @@ def appendEntries(cl):
     # client = xmlrpc.client.ServerProxy("http://" + server_info[voter_id])
     # client.heartbeatHandler(self.id, self.currentTerm)
 
-def appendEntryHandler(leader_term, leader_id, from_index, entries):
+def appendEntryHandler(leader_term, leader_id, prev_log_index,\
+                        prev_log_term, entries, leader_commit):
     print(log)
 
     global timer
     global current_term
     global state
+    global commit_index
 
-    def appendLog(from_index):
+    def appendLog():
         print("in appendLog")
-        # print(prev_log_index, prev_log_index + len(entries))
-        for i,j in enumerate(range(from_index, from_index + len(entries))):
+        print(prev_log_index, prev_log_index + len(entries))
+        for i,j in enumerate(range(prev_log_index, prev_log_index + len(entries))):
             if j < len(log):
                 log[j] = entries[i]
             else:
@@ -275,18 +285,21 @@ def appendEntryHandler(leader_term, leader_id, from_index, entries):
     else:
         current_term = leader_term
     
-    
-    # if from_index > len(log):
-    #     request_all
-
     print("my term: ", current_term)
     timer.reset()
-    if entries != []:
-        appendLog(from_index)
-        success = True
+    if entries == []:
+        if log:
+            if prev_log_index < len(log):
+                if log[prev_log_index] == prev_log_term:
+                    success = True
+        elif len(log) == 0 and prev_log_index == 0:
+            # print("no log")
+            success = True
+    else:
+        appendLog()
         
-    # if leader_commit > commit_index:
-    #         commit_index = min(leader_commit, len(log))
+    if leader_commit > commit_index:
+            commit_index = min(leader_commit, len(log))
         
     return current_term, success 
 
@@ -296,7 +309,7 @@ def raftHandler():
     global vote_counter
     global timer
     global new_leader
-    # global next_index
+    global next_index
     global match_index
 
     timer = timerClass()
@@ -327,11 +340,11 @@ def raftHandler():
                 timer.reset()
                 th12_list= []
                 if new_leader:
-                    # next_index ={}
+                    next_index ={}
                     match_index = {}
                     for cl in client_list:
                     # print("before appendEntries")
-                        # next_index[cl] = [len(log), False] # [initialize, success]
+                        next_index[cl] = [len(log), False] # [initialize, success]
                         match_index[cl] = 0
 
                 for cl in client_list:
@@ -368,10 +381,10 @@ if __name__ == "__main__":
     current_term = 1
     voted_for = None
     log = [] # [[term,data]]
-    # prev_log_index = 0
+    prev_log_index = 0
     new_leader = False
     commit_index = 0
-    # last_applied = 0
+    last_applied = 0
 
     print("Attempting to start XML-RPC Server at "+ address+":"+str(port))
     server = threadedXMLRPCServer((address, port), requestHandler=RequestHandler)
