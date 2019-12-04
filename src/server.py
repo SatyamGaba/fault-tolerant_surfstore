@@ -147,6 +147,8 @@ def restore():
 def isCrashed():
     """Returns whether this node is crashed or not"""
     print("IsCrashed()")
+    global state
+    state = 2
     return is_crashed
 
 
