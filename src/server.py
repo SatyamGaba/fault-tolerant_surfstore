@@ -89,8 +89,10 @@ def getfileinfomap():
 # Update a file's fileinfo entry
 def updatefile(filename, version, hashlist):
     """Updates a file's fileinfo entry"""
-    if is_crashed or state!=0:
+    if is_crashed:
         raise Exception('Crashed')
+    if state!=0:
+        raise Exception('not Leader')
     global log
     # ******* add log entries
     # log.append([current_term, ]) # check with others for their commits
