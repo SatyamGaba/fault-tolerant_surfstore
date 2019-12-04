@@ -21,7 +21,7 @@ class threadedXMLRPCServer(ThreadingMixIn, SimpleXMLRPCServer):
 class timerClass():
     '''Timer'''
     def __init__(self):
-        self.t_a = 250
+        self.t_a = 300
         self.t_b = 500
         self.start = int(time.time()*1000)
         self.timeout = random.randint(self.t_a,self.t_b)
@@ -279,6 +279,8 @@ def appendEntryHandler(leader_term, leader_id, prev_log_index,\
 
     if entries != []:
         appendLog()
+        # appending taking too long, reset again?
+        timer.reset()
 
     if leader_commit > commit_index:
         commit_index = min(leader_commit, len(log)-1)
@@ -341,8 +343,8 @@ def raftHandler():
                 for cl in client_list:
                     th12_list.append(threading.Thread(target = appendEntries, args=(cl, )))
                     th12_list[-1].start()
-##                for t in th12_list:
-##                    t.join()
+                for t in th12_list:
+                    t.join()
                 commit_index = min([match_index[cl] for cl in client_list]) #*** to be implemented
                 new_leader = False
 
@@ -362,10 +364,11 @@ if __name__ == "__main__":
     with open(config_file,'r') as file:
         next(file)
         for line in file:
-            server_info[int(line.split(' ')[0][-2])] = line.split(' ')[1][:-1]
+            server_info[int(line.split(' ')[0][-2])] = line.strip().split(' ')[1]
 
     address, port = server_info[idx].split(':')
     port = int(port)
+    print(port)
 
     num_servers = len(server_info)
     state = 2   # 0: Leader; 1: Candidate; 2: Follower
