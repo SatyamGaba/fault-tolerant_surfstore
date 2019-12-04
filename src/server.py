@@ -327,7 +327,6 @@ def raftHandler():
                 timer.reset()
                 th12_list= []
                 if new_leader:
-                    print("!!!!!!\n!!!!!\n")
                     next_index ={}
                     match_index = {}
                     success={}
@@ -342,8 +341,8 @@ def raftHandler():
                 for cl in client_list:
                     th12_list.append(threading.Thread(target = appendEntries, args=(cl, )))
                     th12_list[-1].start()
-                for t in th12_list:
-                    t.join()
+##                for t in th12_list:
+##                    t.join()
                 commit_index = min([match_index[cl] for cl in client_list]) #*** to be implemented
                 new_leader = False
 
