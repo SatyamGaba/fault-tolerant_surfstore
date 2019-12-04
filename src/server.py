@@ -94,21 +94,17 @@ def updatefile(filename, version, hashlist):
     global log
     # ******* add log entries
     # log.append([current_term, ]) # check with others for their commits
+    last_index = len(log)
     log.append([current_term, [filename, version, hashlist]])
-    print(log)
+    #print(log)
 
-    # if filename in FileInfoMap.keys():
-    #     #file already exist in cloud
-    #     last_version = FileInfoMap[filename]
-    #     if (version == last_version[0]+1):
-    #         FileInfoMap[filename] = tuple((version, hashlist))
-    #     else:
-    #         "send error"
-    #         return False
-    # else:
-    #     #new file (version should be 1)
-    #     FileInfoMap[filename] = tuple((version, hashlist))
-    return True
+    # ********block if majority down****
+
+    # wait until committed?
+    time.sleep(2)
+    if commit_index>=last_index:
+        return True
+    return False
 
 def apply(log_index):
     filename, version, hashlist = log[log_index][1]
@@ -164,7 +160,7 @@ def isCrashed():
 def getVersion(filename):
     "gets version number of file from server"
     if filename not in FileInfoMap.keys():
-        return -1
+        return 0
     return FileInfoMap[filename][0]
     
 
@@ -383,7 +379,7 @@ def raftHandler():
                     for cl in client_list:
                         if cl in match_index.keys() and match_index[cl]>commit_index:
                             commit_count += 1
-                    if commit_count > (num_servers/2):
+                    if commit_count > (num_servers/2) and log[commit_index+1][0]==current_term:
                         commit_index += 1
                     print("Leader commit index: ", commit_index)
 
