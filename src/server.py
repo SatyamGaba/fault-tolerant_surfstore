@@ -89,7 +89,8 @@ def getfileinfomap():
 # Update a file's fileinfo entry
 def updatefile(filename, version, hashlist):
     """Updates a file's fileinfo entry"""
-    # print("UpdateFile()")
+    if is_crashed:
+        return 'Crashed'
     global log
     # ******* add log entries
     # log.append([current_term, ]) # check with others for their commits
@@ -174,6 +175,8 @@ def requestVote(cl):
         pass
 
 def voteHandler(cand_term, cand_id, cand_last_log_index, cand_last_log_term):
+    if is_crashed:
+        return 'Crashed'
     global timer
     timer.reset()
 
@@ -251,6 +254,8 @@ def appendEntries(cl):
 def appendEntryHandler(leader_term, leader_id, prev_log_index,\
                         prev_log_term, entries, leader_commit):
     #print("log",log)
+    if is_crashed:
+        return 'Crashed'
 
     global timer
     global current_term
