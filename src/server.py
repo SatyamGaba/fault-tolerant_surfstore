@@ -147,8 +147,6 @@ def restore():
 def isCrashed():
     """Returns whether this node is crashed or not"""
     print("IsCrashed()")
-    global state
-    state = 2
     return is_crashed
 
 
@@ -279,15 +277,14 @@ def appendEntryHandler(leader_term, leader_id, prev_log_index,\
     state = 2  #*** maybe
     current_term = leader_term
     timer.reset()
-    #print("hearbeat from "+ str(leader_id)+" in term: "+str(current_term))
+    print("hearbeat from "+ str(leader_id)+" in term: "+str(current_term))
+    print("received entries:", entries)
 
     if len(log)-1< prev_log_index or log[prev_log_index][0] != prev_log_term:  #*** maybe
         return current_term, False
 
     if entries != []:
         appendLog()
-        # appending taking too long, reset again?
-        timer.reset()
 
     if leader_commit > commit_index:
         commit_index = min(leader_commit, len(log)-1)
@@ -310,6 +307,8 @@ def raftHandler():
     timer = timerClass()
     timer.reset()
     while True:
+        if is_crashed:
+            continue
         if state !=0:
             if timer.now() > timer.timeout:
                 state = 1  # candidate
