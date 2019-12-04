@@ -21,8 +21,8 @@ class threadedXMLRPCServer(ThreadingMixIn, SimpleXMLRPCServer):
 class timerClass():
     '''Timer'''
     def __init__(self):
-        self.t_a = 1500
-        self.t_b = 2000
+        self.t_a = 250
+        self.t_b = 500
         self.start = int(time.time()*1000)
         self.timeout = random.randint(self.t_a,self.t_b)
 
@@ -94,6 +94,7 @@ def updatefile(filename, version, hashlist):
     # ******* add log entries
     # log.append([current_term, ]) # check with others for their commits
     log.append([current_term, [filename, version, hashlist]])
+    print(log)
 
     # if filename in FileInfoMap.keys():
     #     #file already exist in cloud
@@ -168,7 +169,8 @@ def requestVote(cl):
                 state = 2
             pass
             
-    except (ConnectionRefusedError):
+    except Exception as e:
+        #print(e)
         pass
 
 def voteHandler(cand_term, cand_id, cand_last_log_index, cand_last_log_term):
@@ -185,7 +187,7 @@ def voteHandler(cand_term, cand_id, cand_last_log_index, cand_last_log_term):
         print("casting vote to", cand_id)
         return [True, current_term]
 
-    if cand_term < current_term:
+    if cand_term <= current_term:
         return [False, current_term]
     else:
         last_log_index = len(log)-1
@@ -217,13 +219,13 @@ def appendEntries(cl):
         prev_log_term[cl] = log[prev_log_index[cl]][0]
             
         if success[cl] and prev_log_index[cl]== len(log)-1:
-            print("it's a success")
+            #print("it's a success")
             entries =[]
-            print("hearbeat to ",cl)
         elif success[cl] and prev_log_index[cl] != len(log)-1 :
-            entries = log[prev_log_index[cl]:-1]
+            entries = log[prev_log_index[cl]:len(log)]
         else: # not success, last entries didn't match until next entry reaches at a point
             entries =[]
+            #print("try again, next index: ",next_index[cl])
 
         leader_commit = commit_index
         follower_term, success[cl] = cl.appendEntryHandler(current_term, idx, prev_log_index[cl],\
@@ -235,20 +237,20 @@ def appendEntries(cl):
             current_term = follower_term
 
         if success[cl]:
+            prev_log_index[cl] += len(entries)
             match_index[cl] = prev_log_index[cl]
             next_index[cl] = prev_log_index[cl]+1
         else:
             if next_index[cl] > 0:
                 next_index[cl] -= 1
 
-        print(log)
-    except (ConnectionRefusedError): 
+    except Exception as e: 
+        #print("connection refused by", cl)
         pass
 
 def appendEntryHandler(leader_term, leader_id, prev_log_index,\
                         prev_log_term, entries, leader_commit):
-    print("log",log)
-    print("receiving entries",entries)
+    #print("log",log)
 
     global timer
     global current_term
@@ -269,10 +271,10 @@ def appendEntryHandler(leader_term, leader_id, prev_log_index,\
 
     state = 2  #*** maybe
     current_term = leader_term
-    print("my term: ", current_term)
     timer.reset()
+    #print("hearbeat from "+ str(leader_id)+" in term: "+str(current_term))
 
-    if log[prev_log_index][0] != prev_log_term:  #*** maybe
+    if len(log)-1< prev_log_index or log[prev_log_index][0] != prev_log_term:  #*** maybe
         return current_term, False
 
     if entries != []:
@@ -317,13 +319,15 @@ def raftHandler():
                     state = 0 #leader elected
                     new_leader = True
                     print("I am the leader in term: " + str(current_term) +", votes: " + str(vote_counter))
+                    print(log)
                     # immediately send hearbeat here somehow
         else: # leader
-            timer.setTimeout(300)
+            timer.setTimeout(100)
             if timer.now() > timer.timeout:
                 timer.reset()
                 th12_list= []
                 if new_leader:
+                    print("!!!!!!\n!!!!!\n")
                     next_index ={}
                     match_index = {}
                     success={}
