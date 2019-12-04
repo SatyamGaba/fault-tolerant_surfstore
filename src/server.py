@@ -240,7 +240,7 @@ def appendEntries(cl):
             current_term = follower_term
 
         if success[cl]:
-            prev_log_index[cl] += len(entries)
+            if len(entries)>0: prev_log_index[cl] += len(entries)-1
             match_index[cl] = prev_log_index[cl]
             next_index[cl] = prev_log_index[cl]+1
         else:
@@ -308,6 +308,7 @@ def raftHandler():
     timer.reset()
     while True:
         if is_crashed:
+            state = 2
             continue
         if state !=0:
             if timer.now() > timer.timeout:
