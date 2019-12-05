@@ -105,7 +105,9 @@ def updatefile(filename, version, hashlist):
     # wait until committed?
     time.sleep(2)
     if commit_index>=last_index:
+        print("file Updated")
         return True
+    print("file not updated") 
     return False
 
 def apply(log_index):
@@ -171,6 +173,9 @@ def requestVote(cl):
     global current_term
     global state
 
+    if is_crashed:
+        raise Exception('Crashed')
+    
     last_log_index = len(log) - 1
     last_log_term = log[-1][0]
     # print("current_term",current_term)
@@ -264,7 +269,7 @@ def appendEntries(cl):
                 next_index[cl] -= 1
 
     except Exception as e: 
-        #print("connection refused by", cl)
+        # print("Exception in appendEntries: ", e)
         pass
 
 def appendEntryHandler(leader_term, leader_id, prev_log_index,\
