@@ -103,12 +103,15 @@ def updatefile(filename, version, hashlist):
     # ********block if majority down****
 
     # wait until committed?
-    time.sleep(2)
-    if commit_index>=last_index:
-        print("file Updated")
-        return True
-    print("file not updated") 
-    return False
+    # time.sleep(2)
+    while commit_index <last_index:
+        pass
+    # time.sleep(2)
+    # if commit_index>=last_index:
+    print("file Updated")
+    return True
+    # print("file not updated") 
+    # return False
 
 def apply(log_index):
     filename, version, hashlist = log[log_index][1]
@@ -151,6 +154,7 @@ def restore():
     global is_crashed
     print("Restore()")
     is_crashed = False
+    timer.reset()
     return True
 
 
