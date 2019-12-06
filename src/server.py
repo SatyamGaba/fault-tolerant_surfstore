@@ -334,9 +334,9 @@ def raftHandler():
     timer = timerClass()
     timer.reset()
     while True:
-        if is_crashed:
+        while is_crashed:
             state = 2
-            continue
+            pass
         if commit_index > last_applied:
             if apply(last_applied+1):
                 last_applied += 1
