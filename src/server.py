@@ -154,7 +154,7 @@ def restore():
     global is_crashed
     print("Restore()")
     is_crashed = False
-    timer.reset()
+    # timer.reset()
     return True
 
 
