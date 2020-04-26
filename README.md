@@ -3,11 +3,11 @@ A cloud-based file storage system patterned on Dropbox that can survive server f
 
 ### Usage
 ```bash
-./run-server.sh <config_file> <server_id> <br/>
+./run-server.sh <config_file> <server_id>
 ./run-client.sh <server_ip_addr> <base_folder_to_sync> <chunk_size>
 ```
 > #### example:
 >```bash
->>./run-server.sh config.ini 0` <br/> 
+>>./run-server.sh config.ini 0
 >> ./run-client.sh localhost:9001 ./client1 4096
 ```
